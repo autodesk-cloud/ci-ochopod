@@ -1,0 +1,15 @@
+cluster:  servo
+image:    paugamo/servo
+debug:    true
+ports:
+    - 22
+    - 5000 5000
+
+verbatim:
+  cpus: 1.0
+  mem:  1024
+
+  constraints:
+  -
+    - hostname
+    - UNIQUE

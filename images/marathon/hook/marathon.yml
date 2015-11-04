@@ -1,0 +1,9 @@
+cluster:  hook
+image:    paugamo/hook
+debug:    true
+ports:
+    - 5000 5000
+
+verbatim:
+  cpus: 1.0
+  mem:  1024

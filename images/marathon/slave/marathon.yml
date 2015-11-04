@@ -1,0 +1,38 @@
+cluster:  slave
+image:    paugamo/slave-basic
+debug:    true
+
+settings:
+
+  git:
+    username:
+    password:
+
+  presets:
+
+    jenkins:
+      username:
+      token:
+      front-url:
+
+    hipchat:
+      token:
+
+verbatim:
+  cpus: 1.0
+  mem:  4096
+
+  #
+  # - /var/run is mapped to read the docker daemon unix socket (which we socat to TCP 9001 internally)
+  # - map your .docker accordingly in /host to allow access to the docker login credentials (not backward compatible
+  #   with older docker distributions, for instance 1.5.x)
+  #
+  container:
+    volumes:
+      - containerPath:  /host/var/run
+        hostPath:       /var/run
+        mode:           RO
+
+      - containerPath:  /host/.docker
+        hostPath:       /root/.docker
+        mode:           RO

@@ -1,0 +1,3 @@
+machine		git.autodesk.com
+login		{{login}}
+password	{{password}}
