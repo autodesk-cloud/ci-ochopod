@@ -1,0 +1,181 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Overview &mdash; ci-ochopod 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/flasky.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="ci-ochopod 1.0 documentation" href="#" />
+    <link rel="next" title="CI" href="ci.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+  
+  
+  <div class=indexwrapper>
+  
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="ci.html" title="CI"
+             accesskey="N">next</a> |</li>
+        <li><a href="#">ci-ochopod 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="overview">
+<h1>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="the-ci-backend">
+<h2>The CI backend<a class="headerlink" href="#the-ci-backend" title="Permalink to this headline">¶</a></h2>
+<p>This project is a simple CI/CD backend built on top of the <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> mini-PaaS. It allows you to build your images
+straight from <a class="reference external" href="https://github.com/">Git</a> using a flow similar to <a class="reference external" href="https://travis-ci.org">Travis</a>.</p>
+<p>The backend itself is made of multiple <a class="reference external" href="https://www.docker.com/">Docker</a> container running <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> and living into a <a class="reference external" href="http://mesos.apache.org/">Mesos</a> cluster. It is
+articulated around a <em>hook</em> container that acts as a <a class="reference external" href="https://github.com/">Git</a> web-hook receiver and forwards the commit payload to
+a <em>redis</em> queue. A set of <em>slave</em> containers will pick those notifications, clone or update the code and execute a
+bunch of shell commands defined in the repository itself. Usual integration steps such as unit-testing, compilation,
+packaging, docker push and so on can thus be all nicely folded into the repository itself.</p>
+<div class="figure align-center">
+<a class="reference internal image-reference" href="_images/ci-overall.png"><img alt="_images/ci-overall.png" src="_images/ci-overall.png" style="width: 100%;" /></a>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">This project is <em>not</em> a replacement for CI tools such as <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> but rather a specialized companion service.</p>
+</div>
+</div>
+<div class="section" id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="ci.html">CI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ci.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ci.html#integrating-with-git">Integrating with Git</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ci.html#setting-your-hook">Setting your hook</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ci.html#specifying-hints">Specifying hints</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ci.html#defining-your-build">Defining your build</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ci.html#integration-yml">Integration.yml</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ci.html#working-directory-and-environment-variables">Working directory and environment variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ci.html#build-outcome">Build outcome</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ci.html#build-status">Build status</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ci.html#tools">Tools</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ci.html#docker">Docker</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ci.html#hipchat">Hipchat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ci.html#jenkins">Jenkins</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cd.html">CD</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="cd.html#the-model">The model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cd.html#enabling-cd">Enabling CD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cd.html#defining-your-cd">Defining your CD</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cd.html#script-upload">Script upload</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cd.html#uploading-from-the-cli">Uploading from the CLI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cd.html#encryption">Encryption</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cd.html#scripting">Scripting</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="operations.html">Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="operations.html#ci-backend-deployment">CI Backend Deployment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="operations.html#scaling-up">Scaling up</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><em>Index</em></a></li>
+<li><a class="reference internal" href="py-modindex.html"><em>Module Index</em></a></li>
+<li><a class="reference internal" href="search.html"><em>Search Page</em></a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="#">
+              <img class="logo" src="_static/autodesk-logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Overview</a><ul>
+<li><a class="reference internal" href="#the-ci-backend">The CI backend</a></li>
+<li><a class="reference internal" href="#contents">Contents</a></li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+</li>
+</ul>
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="ci.html" title="next chapter">CI</a></li>
+  </ul></li>
+</ul>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer">
+    &copy; Copyright 2015, Autodesk.
+    Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
+  </div>
+  
+  </div>
+  
+  </body>
+</html>

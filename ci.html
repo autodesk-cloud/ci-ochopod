@@ -1,0 +1,310 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>CI &mdash; ci-ochopod 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/flasky.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="ci-ochopod 1.0 documentation" href="index.html" />
+    <link rel="next" title="CD" href="cd.html" />
+    <link rel="prev" title="Overview" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+  
+  
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cd.html" title="CD"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Overview"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">ci-ochopod 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="ci">
+<h1>CI<a class="headerlink" href="#ci" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>The driving goal behind this effort is to let developers quickly build and release new <a class="reference external" href="https://www.docker.com/">Docker</a> images but just
+defining a build script and pushing their code to <a class="reference external" href="https://github.com/">Git</a>. This is heavily influenced by the rather successful
+<a class="reference external" href="https://travis-ci.org/">Travis</a> CI model where all the logic defining the <em>integration</em> resides directly in the repository.</p>
+<p>We wanted in addition to provide a flexible way to define and deploy new build slaves ready to interact with
+third-party systems such as <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> or <a class="reference external" href="https://www.hipchat.com/">Hipchat</a>. Those slaves are fully containerized and can be easily customized.</p>
+<p>Our CI backend is running on top of a <a class="reference external" href="http://mesos.apache.org/">Mesos</a> cluster using our open-source <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> mini-PaaS. It is formed by
+deploying a few self-configuring containers: the receiving <em>hook</em>, a small <em>redis</em> acting like a job queue and one
+or more <em>slaves</em>. The <em>hook</em> is an edge node reachable from at least the <a class="reference external" href="https://github.com/">Git</a> backend and acts as a sink that receives
+push notifications (authenticated via a SHA1 signature). The rest of the containers can be placed in a VPC if needed.</p>
+<div class="figure align-center">
+<a class="reference internal image-reference" href="_images/ci-layout.png"><img alt="_images/ci-layout.png" src="_images/ci-layout.png" style="width: 100%;" /></a>
+</div>
+</div>
+<div class="section" id="integrating-with-git">
+<h2>Integrating with Git<a class="headerlink" href="#integrating-with-git" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="setting-your-hook">
+<h3>Setting your hook<a class="headerlink" href="#setting-your-hook" title="Permalink to this headline">¶</a></h3>
+<p>In order to connect your <a class="reference external" href="https://github.com/">Git</a> repository with the CI backend you simply have to define a web hook in your
+repository settings.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">You <strong>must</strong> specify a secret token when configuring your web hook. This secret is by default randomly generated
+by the <em>hook</em> container when it boots. You can use our <a class="reference external" href="https://github.com/autodesk-cloud/ochothon">Ochothon</a> CLI interface to retrieve it.</p>
+</div>
+<p>Once your web hook is enabled add a <a class="reference external" href="http://yaml.org/">YAML</a> file called <em>integration.yml</em> at your repository root. This file will be
+used by the backend upon a <em>git push</em> to execute shell snippets on one of the build slaves.</p>
+<p>The current operating model is to only trigger the build for the <em>master</em> branch. Pushes to any other branch will be
+silently ignored. The backend will assign each git repository to a given slave (e.g it is sticky and all builds
+for repository foo/bar will take place within the <em>same container</em>).</p>
+</div>
+<div class="section" id="specifying-hints">
+<h3>Specifying hints<a class="headerlink" href="#specifying-hints" title="Permalink to this headline">¶</a></h3>
+<p>The CI backend may run multiple slaves each with its own capabilities. You can pass one or more hints via the web
+hook URL by concatenating them (separate with plus signs). For instance if you need a slave that allows you to use
+JDK8 and SBT you could set your web hook to:</p>
+<p>In that case the backend will attempt to find a suitable slave by matching the first one offering all the requested
+hints. Specifying hints and not being to match a slave will result in a failure via a HTTP 403.  Not specifying any
+hints (e.g basic web hook URL with no path) will assign the build to a random slave.</p>
+</div>
+</div>
+<div class="section" id="defining-your-build">
+<h2>Defining your build<a class="headerlink" href="#defining-your-build" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="integration-yml">
+<h3>Integration.yml<a class="headerlink" href="#integration-yml" title="Permalink to this headline">¶</a></h3>
+<p>The top-level <em>integration.yml</em> is made or one or more build <em>steps</em>. Each step has a title and is made of one or
+more shell snippets. A single step build could be as simple as:</p>
+<div class="code YAML highlight-python"><div class="highlight"><pre>step:  say hello
+shell:
+- echo hello
+</pre></div>
+</div>
+<p>You can layout <em>integration.yml</em> as a single step like the example above or as an array of steps.</p>
+</div>
+<div class="section" id="working-directory-and-environment-variables">
+<h3>Working directory and environment variables<a class="headerlink" href="#working-directory-and-environment-variables" title="Permalink to this headline">¶</a></h3>
+<p>Each build step can be located into an explicit sub-directory (the default being the repository root). Simply define
+the <strong>cwd</strong> attribute to wherever you wish your shell snippets to run from. For instance if you wish to build your <a class="reference external" href="http://www.scala-sbt.org/">SBT</a>
+project which is located in the /app subdirectory you could do:</p>
+<div class="code YAML highlight-python"><div class="highlight"><pre>step:  build my SBT app
+cwd:   app
+shell:
+- sbt clean
+- sbt compile
+</pre></div>
+</div>
+<p>Additionally your shell snippets will be provided a few useful environment variables:</p>
+<blockquote>
+<div><ul class="simple">
+<li>$HOST : build slave hostname</li>
+<li>$COMMIT : git commit hash (full length)</li>
+<li>$COMMIT_SHORT : git commit hash (short version)</li>
+<li>$MESSAGE : git commit message</li>
+<li>$TAG : repository name</li>
+<li>$TIMESTAMP : git push timestamp</li>
+<li>$LOG : current build log as a serialized <a class="reference external" href="http://www.json.org/">JSON</a> array</li>
+<li>$OK : &#8220;true&#8221; if the build is still going on smoothly, &#8220;false&#8221; if it failed earlier</li>
+</ul>
+</div></blockquote>
+<p>You can also define your own environment variables in a given build step by using the optional <strong>env</strong> attribute. It
+should be set to a set of key/value pairs. For instance you can define $FOO by doing:</p>
+<p>You can use those for instance to craft a build tag to be included in your <a class="reference external" href="https://www.docker.com/">Docker</a> image (very handy to pass down
+build information):</p>
+<div class="code YAML highlight-python"><div class="highlight"><pre>step:  craft a build tag
+shell:
+- echo &quot;$MESSAGE ($COMMIT_SHORT)&quot; &gt; BUILD
+</pre></div>
+</div>
+<p>By default the standard output from the shell snippets is not recorded. You can however turn it on by specifying
+the <strong>debug</strong> attribute and set it to <em>true</em>.</p>
+</div>
+<div class="section" id="build-outcome">
+<h3>Build outcome<a class="headerlink" href="#build-outcome" title="Permalink to this headline">¶</a></h3>
+<p>By default any shell snippet that does not exit with a zero code will trip the build. All subsequent snippets will
+then be skipped. You can force executing shell snippets even if the build has failed by pre-pending with <em>no-skip</em>.
+This mechanism is handy to guarantee always sending post-build notifications of instance.</p>
+<p>As an example the following example will always run the echo command despite the fact the build is failing:</p>
+<div class="code YAML highlight-python"><div class="highlight"><pre>step:  always echo no matter what
+shell:
+- 0xdeadbeef
+- no-skip echo hello
+</pre></div>
+</div>
+</div>
+<div class="section" id="build-status">
+<h3>Build status<a class="headerlink" href="#build-status" title="Permalink to this headline">¶</a></h3>
+<p>You can always query the backend to check what your <a class="reference external" href="https://github.com/">Git</a> repository build status is. Just <strong>HTTP GET /status</strong> on
+the git hook target. For instance let&#8217;s pretend you wish to check the status for the <em>cloudplatform-compute/test</em>
+repository:</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>$ curl -H &quot;Accept: text/raw&quot; http://10.50.85.97:5000/status/cloudplatform-compute/test
+  - commit 44d27e9096 (CSE-129 updated Dockerfile to fix the build)
+  - add a label, build and push the resulting docker image to autodeskcloud/test
+  [passed] echo &quot;$MESSAGE ($COMMIT_SHORT)&quot; &gt; BUILD... (0 seconds)
+  [passed] tools push -t latest autodeskcloud/test -d... (27 seconds)
+  - notify hipchat
+  [passed] if [ -n &quot;$OK&quot; ] ; then   tools hipchat -c green 883987 &quot;build pa... (0 seconds)
+  [passed] tools jenkins view/CSE/job/Test... (1 seconds)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="tools">
+<h2>Tools<a class="headerlink" href="#tools" title="Permalink to this headline">¶</a></h2>
+<p>The <em>build slaves</em> come by default equipped with a set of tools you can invoke from your the shell. Those tools are
+installed as a dedicated <a class="reference external" href="https://www.python.org/">Python</a> package and all support a <em>-d</em> switch to turn verbose logging on.</p>
+<div class="section" id="docker">
+<h3>Docker<a class="headerlink" href="#docker" title="Permalink to this headline">¶</a></h3>
+<p>The <em>push</em> tool will perform a <a class="reference external" href="https://www.docker.com/">Docker</a> build &amp; push in one go. A valid <em>Dockerfile</em> is expected to be found wherever
+the tool is run from. The tool will by default push the image using the <em>latest</em> tag. You can specify one or more
+tags to push against by using the <em>-t</em> switch.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The underlying host machine <a class="reference external" href="https://www.docker.com/">Docker</a> credentials will be used when pushing the image. The tool actually talks
+to the <a class="reference external" href="https://www.docker.com/">Docker</a> daemon of the host via the remote API. The daemon&#8217;s unix socket is mapped via <em>socat</em> to TCP 9000
+within the slave container.</p>
+</div>
+<p>Simply building and pushing an image is quite easy:</p>
+<div class="code YAML highlight-python"><div class="highlight"><pre>step: build and push a test image
+shell:
+- tools push paugamo/test
+</pre></div>
+</div>
+<p>You can use the <a class="reference external" href="https://github.com/">Git</a> commit hash to version your image (using it as a tag):</p>
+<div class="code YAML highlight-python"><div class="highlight"><pre>step: build and push a versioned test image
+shell:
+- tools push -t $COMMIT_SHORT paugamo/test
+</pre></div>
+</div>
+</div>
+<div class="section" id="hipchat">
+<h3>Hipchat<a class="headerlink" href="#hipchat" title="Permalink to this headline">¶</a></h3>
+<p>The <em>hipchat</em> tool is a cheap but effective way to let your integration build perform notifications. You just need
+to specify the room number (look in your <a class="reference external" href="https://www.hipchat.com/">Hipchat</a> UI to find what it is). The notification color can be specified
+using the <em>-c</em> switch (pick from the colors supported by the <a class="reference external" href="https://www.hipchat.com/">Hipchat</a> API such as <em>green</em> or <em>red</em>). For instance:</p>
+<div class="code YAML highlight-python"><div class="highlight"><pre>step: build and push a versioned test image
+shell:
+- tools hipchat 1509036 &quot;build started for $TAG ($COMMIT_SHORT, $MESSAGE)&quot;
+- tools push -t $COMMIT_SHORT paugamo/test
+</pre></div>
+</div>
+</div>
+<div class="section" id="jenkins">
+<h3>Jenkins<a class="headerlink" href="#jenkins" title="Permalink to this headline">¶</a></h3>
+<p>The <em>jenkins</em> tool allows you to trigger a specific <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> job and create it if not already there. The template we
+use is to setup the job so that it pings the CI backend to grab the build status. You can then free to customize the
+job in <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> directly to trigger downstream build events.</p>
+<p>You just need to specify the <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> job path. If you for instance want to have <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> be notified of the outcome
+of a build via the <em>Test</em> job nested under the <em>CI-Tests</em> folder you could do:</p>
+<div class="code YAML highlight-python"><div class="highlight"><pre>step: build and push a versioned test image
+shell:
+- tools hipchat 1509036 &quot;build started for $TAG ($COMMIT_SHORT, $MESSAGE)&quot;
+- tools push -t $COMMIT_SHORT paugamo/test
+- no-skip tools jenkins CI-Tests/job/Test
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The <em>no-skip</em> token is used in that case to guarantee we notify <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> even if the build failed. In that case
+<a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> will by default CURL the CI backend and record there was a failure.</p>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/autodesk-logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">CI</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#integrating-with-git">Integrating with Git</a><ul>
+<li><a class="reference internal" href="#setting-your-hook">Setting your hook</a></li>
+<li><a class="reference internal" href="#specifying-hints">Specifying hints</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#defining-your-build">Defining your build</a><ul>
+<li><a class="reference internal" href="#integration-yml">Integration.yml</a></li>
+<li><a class="reference internal" href="#working-directory-and-environment-variables">Working directory and environment variables</a></li>
+<li><a class="reference internal" href="#build-outcome">Build outcome</a></li>
+<li><a class="reference internal" href="#build-status">Build status</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tools">Tools</a><ul>
+<li><a class="reference internal" href="#docker">Docker</a></li>
+<li><a class="reference internal" href="#hipchat">Hipchat</a></li>
+<li><a class="reference internal" href="#jenkins">Jenkins</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Overview</a></li>
+      <li>Next: <a href="cd.html" title="next chapter">CD</a></li>
+  </ul></li>
+</ul>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer">
+    &copy; Copyright 2015, Autodesk.
+    Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
+  </div>
+  
+  </body>
+</html>

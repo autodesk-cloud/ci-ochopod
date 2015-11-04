@@ -1,0 +1,226 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>CD &mdash; ci-ochopod 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/flasky.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="ci-ochopod 1.0 documentation" href="index.html" />
+    <link rel="next" title="Operations" href="operations.html" />
+    <link rel="prev" title="CI" href="ci.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+  
+  
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="operations.html" title="Operations"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="ci.html" title="CI"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">ci-ochopod 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="cd">
+<h1>CD<a class="headerlink" href="#cd" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="the-model">
+<h2>The model<a class="headerlink" href="#the-model" title="Permalink to this headline">¶</a></h2>
+<p>Our goal is two-fold: we want to be able to automate CD scenario involving sequencing and decision-making while
+providing a convenient entry-point for doing so (typically to trigger deployments from tools such as <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a>).
+The model is thus quite simple: let a remote client upload both scripts (plus ancillary data such as settings or
+templates) to a secure proxy which in turn will let them proxy commands to the <a class="reference external" href="https://github.com/autodesk-cloud/ochothon">Ochothon</a> portal. This is more or
+less a way to automate what a real user would do via the <a class="reference external" href="https://github.com/autodesk-cloud/ochothon">Ochothon</a> CLI interface.</p>
+</div>
+<div class="section" id="enabling-cd">
+<h2>Enabling CD<a class="headerlink" href="#enabling-cd" title="Permalink to this headline">¶</a></h2>
+<p>Just deploy a <strong>servo</strong> container in your <a class="reference external" href="http://mesos.apache.org/">Mesos</a> cluster and note its auto-generated secret token. For instance:</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>$ ocho cli
+welcome to the ocho CLI ! (CTRL-C or exit to get out)
+10.50.85.97 &gt; deploy servo.yml
+100% success (+1 pods)
+10.50.85.97 &gt; poll *servo
+1 pods, 100% replies -&gt;
+
+pod                |  metrics
+                   |
+marathon.servo #1  |  {&quot;token&quot;: &quot;edAZR8atfOahd7tfPnVo3xpJX+ks6wsV&quot;, &quot;uptime&quot;: &quot;0.00 hours (pid 59)&quot;}
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Make sure this <em>servo</em> container is reachable from where you wish to trigger your CD logic.</p>
+</div>
+</div>
+<div class="section" id="defining-your-cd">
+<h2>Defining your CD<a class="headerlink" href="#defining-your-cd" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="script-upload">
+<h3>Script upload<a class="headerlink" href="#script-upload" title="Permalink to this headline">¶</a></h3>
+<p>In order to run your CD scripts you first need to bundle them in a TGZ archive. This archive is then sent to the
+<em>servo</em> via a HTTP POST. A mandatory signature must be provided as well: the SHA1 hash of the archive has to be
+passed via the <em>X-Signature</em> header. Please note the <em>servo</em> secret token must be used as the hash key.</p>
+<p>The HTTP POST is performed as /run/<em>scripts</em> where <em>scripts</em> is a string formed by concatenating together the name
+of the <a class="reference external" href="https://www.python.org/">Python</a> modules that must be executed (separate with a + character). Any module that is specified must be
+included in the uploaded archive.</p>
+<p>This use case is typically what you would run from a tool like <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a>. For instance you could upload and run in
+order two CD scripts called <em>deploy.py</em> and <em>test.py</em> this way:</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>$ tar zcf upload.tgz *
+$ HASH=$(openssl dgst -sha1 -hmac $SERVO_TOKEN upload.tgz)
+$ HASH=&quot;sha1=${HASH##* }&quot;
+$ curl -X POST -F tgz=@upload.tgz -H -H &quot;X-Signature:$HASH&quot; http://10.120.11.80:5000/run/deploy.py+test.py
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">You can include other files in the TGZ such as templates, <a class="reference external" href="http://yaml.org/">YAML</a> container definition files and so on.</p>
+</div>
+</div>
+<div class="section" id="uploading-from-the-cli">
+<h3>Uploading from the CLI<a class="headerlink" href="#uploading-from-the-cli" title="Permalink to this headline">¶</a></h3>
+<p>The <a class="reference external" href="https://github.com/autodesk-cloud/ochothon">Ochothon</a> CLI also allows you to directly upload &amp; trigger your CD scripts in one go. The <em>servo</em> pod exposes a
+dedicated <em>run</em> tool that will upload the archive and perform the SHA1 signature automatically. For instance:</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>$ ocho cli my-cluster
+welcome to the ocho CLI ! (CTRL-C or exit to get out)
+my-cluster &gt; exec *servo --force run ~/my-scripts deploy.py test.py
+</pre></div>
+</div>
+</div>
+<div class="section" id="encryption">
+<h3>Encryption<a class="headerlink" href="#encryption" title="Permalink to this headline">¶</a></h3>
+<p>A common use case is to deploy containers and have to specify sensitive information such as API keys and the like.
+This data can be scrambled and then decrypted by the servo upon upload (especially if it is meant to be stored in a
+git repository). Any file with a <strong>.aes</strong> extension will be assumed to be encrypted using <strong>AES 256 CBC</strong> and the
+<em>servo</em> secret token.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Upon successful decryption the <em>.aes</em> extension is removed automatically, e.g <em>foo.yml.aes</em> will be made available
+to the script as <em>foo.yml</em> (exactly as if it had been uploaded in clear).</p>
+</div>
+</div>
+<div class="section" id="scripting">
+<h3>Scripting<a class="headerlink" href="#scripting" title="Permalink to this headline">¶</a></h3>
+<p>A <em>servo</em> package is available at execution time and will give you access to a <em>proxy</em> method. This method will
+transparently forward CLI commands to the local <a class="reference external" href="https://github.com/autodesk-cloud/ochothon">Ochothon</a> portal. For instance you could run the following script
+to list all your containers :</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">servo</span> <span class="kn">import</span> <span class="n">servo</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+
+    <span class="k">with</span> <span class="n">servo</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">proxy</span><span class="p">:</span>
+        <span class="n">js</span> <span class="o">=</span> <span class="n">proxy</span><span class="p">(</span><span class="s">&#39;ls&#39;</span><span class="p">)</span>
+        <span class="k">print</span> <span class="n">js</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>You can run anything you would do via the CLI. The proxy method will request a <a class="reference external" href="http://www.json.org/">JSON</a> output when talking to
+<a class="reference external" href="https://github.com/autodesk-cloud/ochothon">Ochothon</a>. You can use the resulting payload to implement complex operations. For instance you could find out where
+your <em>web</em> containers are located and issue a HTTP <em>/ping</em> query to make sure they are all up:</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">from</span> <span class="nn">servo</span> <span class="kn">import</span> <span class="n">servo</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="k">with</span> <span class="n">servo</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">proxy</span><span class="p">:</span>
+        <span class="n">js</span> <span class="o">=</span> <span class="n">proxy</span><span class="p">(</span><span class="s">&#39;port 80 </span><span class="si">%s</span><span class="s">.web&#39;</span> <span class="o">%</span> <span class="n">prefix</span><span class="p">)</span>
+        <span class="n">urls</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;http://</span><span class="si">%s</span><span class="s">:</span><span class="si">%s</span><span class="s">/ping&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">details</span><span class="p">[</span><span class="s">&#39;ip&#39;</span><span class="p">],</span> <span class="n">details</span><span class="p">[</span><span class="s">&#39;ports&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">details</span> <span class="ow">in</span> <span class="n">js</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+
+        <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">urls</span><span class="p">:</span>
+            <span class="n">get</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+            <span class="n">code</span> <span class="o">=</span> <span class="n">get</span><span class="o">.</span><span class="n">status_code</span>
+            <span class="k">assert</span> <span class="n">code</span> <span class="o">&lt;</span> <span class="mi">300</span><span class="p">,</span> <span class="s">&#39;GET </span><span class="si">%s</span><span class="s"> -&gt; HTTP </span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">code</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Anything printed out on the standard output will be returned back to the caller. If you HTTP POST to the <em>servo</em> and
+specify <em>application/json</em> as the accepted content type the result code will always be HTTP 200 and the payload be
+serialized <a class="reference external" href="http://www.json.org/">JSON</a>. If you accept <em>text/plain</em> the result code will be HTTP 412 in case of failure or 200 otherwise.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/autodesk-logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">CD</a><ul>
+<li><a class="reference internal" href="#the-model">The model</a></li>
+<li><a class="reference internal" href="#enabling-cd">Enabling CD</a></li>
+<li><a class="reference internal" href="#defining-your-cd">Defining your CD</a><ul>
+<li><a class="reference internal" href="#script-upload">Script upload</a></li>
+<li><a class="reference internal" href="#uploading-from-the-cli">Uploading from the CLI</a></li>
+<li><a class="reference internal" href="#encryption">Encryption</a></li>
+<li><a class="reference internal" href="#scripting">Scripting</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="ci.html" title="previous chapter">CI</a></li>
+      <li>Next: <a href="operations.html" title="next chapter">Operations</a></li>
+  </ul></li>
+</ul>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer">
+    &copy; Copyright 2015, Autodesk.
+    Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
+  </div>
+  
+  </body>
+</html>
