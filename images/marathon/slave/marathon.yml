@@ -1,5 +1,5 @@
 cluster:  slave
-image:    paugamo/slave-basic
+image:    autodeskcloud/marathon-ci-slave:1.0.0
 debug:    true
 
 settings:

@@ -1,5 +1,5 @@
 cluster:  hook
-image:    paugamo/hook
+image:    autodeskcloud/marathon-ci-hook:1.0.0
 debug:    true
 ports:
     - 5000 5000

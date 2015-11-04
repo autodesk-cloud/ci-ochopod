@@ -1,5 +1,5 @@
 cluster:  servo
-image:    paugamo/servo
+image:    autodeskcloud/marathon-ci-servo:1.0.0
 debug:    true
 ports:
     - 22
