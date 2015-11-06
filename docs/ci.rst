@@ -47,13 +47,17 @@ The CI backend may run multiple slaves each with its own capabilities. You can p
 hook URL by concatenating them (separate with plus signs). For instance if you need a slave that allows you to use
 JDK8 and SBT you could set your web hook to:
 
-.. core:: bash
+.. code:: bash
 
-  https://ci-backend/JDK8+SBT
+    https://ci-backend/JDK8+SBT
 
 In that case the backend will attempt to find a suitable slave by matching the first one offering all the requested
 hints. Specifying hints and not being to match a slave will result in a failure via a HTTP 403.  Not specifying any
 hints (e.g basic web hook URL with no path) will assign the build to a random slave.
+
+.. note::
+    Each slave declares its capabilities via its *cluster name*. For instance if you spin up a slave container
+    called *slave-foo-bar* it will register itself has having capabilities *foo* and *bar*.
 
 Defining your build
 ___________________
@@ -95,7 +99,7 @@ Additionally your shell snippets will be provided a few useful environment varia
  - $MESSAGE : git commit message
  - $TAG : repository name
  - $TIMESTAMP : git push timestamp
- - $LOG : current build log as a serialized JSON_ array
+ - $LOG : current build log as a serialized JSON_ array (abridged version)
  - $OK : "true" if the build is still going on smoothly, "false" if it failed earlier
 
 You can also define your own environment variables in a given build step by using the optional **env** attribute. It
@@ -143,16 +147,16 @@ Build status
 ************
 
 You can always query the backend to check what your Git_ repository build status is. Just **HTTP GET /status** on
-the git hook target. For instance let's pretend you wish to check the status for the *cloudplatform-compute/test*
+the git hook target. For instance let's pretend you wish to check the status for the *paugamo/test*
 repository:
 
 .. code:: bash
 
-    $ curl -H "Accept: text/raw" http://10.50.85.97:5000/status/cloudplatform-compute/test
+    $ curl -H "Accept: text/raw" http://ci-backend/status/paugamo/test
       - commit 44d27e9096 (CSE-129 updated Dockerfile to fix the build)
-      - add a label, build and push the resulting docker image to autodeskcloud/test
+      - add a label, build and push the resulting docker image to paugamo/test
       [passed] echo "$MESSAGE ($COMMIT_SHORT)" > BUILD... (0 seconds)
-      [passed] tools push -t latest autodeskcloud/test -d... (27 seconds)
+      [passed] tools push -t latest paugamo/test -d... (27 seconds)
       - notify hipchat
       [passed] if [ -n "$OK" ] ; then   tools hipchat -c green 883987 "build pa... (0 seconds)
       [passed] tools jenkins view/CSE/job/Test... (1 seconds)
@@ -190,6 +194,16 @@ You can use the Git_ commit hash to version your image (using it as a tag):
     step: build and push a versioned test image
     shell:
     - tools push -t $COMMIT_SHORT paugamo/test
+
+
+You want to use Quay_ as your target registry ? No problemo:
+
+.. code:: YAML
+
+    step: build and push a to quay
+    shell:
+    - tools push quay.io/paugamo/test
+
 
 Hipchat
 *******
@@ -236,6 +250,7 @@ of a build via the *Test* job nested under the *CI-Tests* folder you could do:
 .. _Ochopod: https://github.com/autodesk-cloud/ochopod
 .. _Ochothon: https://github.com/autodesk-cloud/ochothon
 .. _Python: https://www.python.org/
+.. _Quay: https://quay.io/
 .. _SBT: http://www.scala-sbt.org/
 .. _Travis: https://travis-ci.org/
 .. _YAML: http://yaml.org/
