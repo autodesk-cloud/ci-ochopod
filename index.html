@@ -60,17 +60,18 @@
 <h2>The CI backend<a class="headerlink" href="#the-ci-backend" title="Permalink to this headline">¶</a></h2>
 <p>This project is a simple CI/CD backend built on top of the <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> mini-PaaS. It allows you to build your images
 straight from <a class="reference external" href="https://github.com/">Git</a> using a flow similar to <a class="reference external" href="https://travis-ci.org">Travis</a>.</p>
+<div class="figure align-center">
+<a class="reference internal image-reference" href="_images/ci-overall.png"><img alt="_images/ci-overall.png" src="_images/ci-overall.png" style="width: 100%;" /></a>
+</div>
 <p>The backend itself is made of multiple <a class="reference external" href="https://www.docker.com/">Docker</a> container running <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> and living into a <a class="reference external" href="http://mesos.apache.org/">Mesos</a> cluster. It is
 articulated around a <em>hook</em> container that acts as a <a class="reference external" href="https://github.com/">Git</a> web-hook receiver and forwards the commit payload to
 a <em>redis</em> queue. A set of <em>slave</em> containers will pick those notifications, clone or update the code and execute a
 bunch of shell commands defined in the repository itself. Usual integration steps such as unit-testing, compilation,
 packaging, docker push and so on can thus be all nicely folded into the repository itself.</p>
-<div class="figure align-center">
-<a class="reference internal image-reference" href="_images/ci-overall.png"><img alt="_images/ci-overall.png" src="_images/ci-overall.png" style="width: 100%;" /></a>
-</div>
-<div class="admonition warning">
-<p class="first admonition-title">Warning</p>
-<p class="last">This project is <em>not</em> a replacement for CI tools such as <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> but rather a specialized companion service.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This project is <em>not</em> a replacement for CI tools such as <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> but rather a specialized companion service that
+can be easily customized.</p>
 </div>
 </div>
 <div class="section" id="contents">

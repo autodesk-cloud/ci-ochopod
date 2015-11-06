@@ -95,9 +95,17 @@ for repository foo/bar will take place within the <em>same container</em>).</p>
 <p>The CI backend may run multiple slaves each with its own capabilities. You can pass one or more hints via the web
 hook URL by concatenating them (separate with plus signs). For instance if you need a slave that allows you to use
 JDK8 and SBT you could set your web hook to:</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>https://ci-backend/JDK8+SBT
+</pre></div>
+</div>
 <p>In that case the backend will attempt to find a suitable slave by matching the first one offering all the requested
 hints. Specifying hints and not being to match a slave will result in a failure via a HTTP 403.  Not specifying any
 hints (e.g basic web hook URL with no path) will assign the build to a random slave.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Each slave declares its capabilities via its <em>cluster name</em>. For instance if you spin up a slave container
+called <em>slave-foo-bar</em> it will register itself has having capabilities <em>foo</em> and <em>bar</em>.</p>
+</div>
 </div>
 </div>
 <div class="section" id="defining-your-build">
@@ -134,7 +142,7 @@ shell:
 <li>$MESSAGE : git commit message</li>
 <li>$TAG : repository name</li>
 <li>$TIMESTAMP : git push timestamp</li>
-<li>$LOG : current build log as a serialized <a class="reference external" href="http://www.json.org/">JSON</a> array</li>
+<li>$LOG : current build log as a serialized <a class="reference external" href="http://www.json.org/">JSON</a> array (abridged version)</li>
 <li>$OK : &#8220;true&#8221; if the build is still going on smoothly, &#8220;false&#8221; if it failed earlier</li>
 </ul>
 </div></blockquote>
@@ -166,13 +174,13 @@ shell:
 <div class="section" id="build-status">
 <h3>Build status<a class="headerlink" href="#build-status" title="Permalink to this headline">¶</a></h3>
 <p>You can always query the backend to check what your <a class="reference external" href="https://github.com/">Git</a> repository build status is. Just <strong>HTTP GET /status</strong> on
-the git hook target. For instance let&#8217;s pretend you wish to check the status for the <em>cloudplatform-compute/test</em>
+the git hook target. For instance let&#8217;s pretend you wish to check the status for the <em>paugamo/test</em>
 repository:</p>
-<div class="code bash highlight-python"><div class="highlight"><pre>$ curl -H &quot;Accept: text/raw&quot; http://10.50.85.97:5000/status/cloudplatform-compute/test
+<div class="code bash highlight-python"><div class="highlight"><pre>$ curl -H &quot;Accept: text/raw&quot; http://ci-backend/status/paugamo/test
   - commit 44d27e9096 (CSE-129 updated Dockerfile to fix the build)
-  - add a label, build and push the resulting docker image to autodeskcloud/test
+  - add a label, build and push the resulting docker image to paugamo/test
   [passed] echo &quot;$MESSAGE ($COMMIT_SHORT)&quot; &gt; BUILD... (0 seconds)
-  [passed] tools push -t latest autodeskcloud/test -d... (27 seconds)
+  [passed] tools push -t latest paugamo/test -d... (27 seconds)
   - notify hipchat
   [passed] if [ -n &quot;$OK&quot; ] ; then   tools hipchat -c green 883987 &quot;build pa... (0 seconds)
   [passed] tools jenkins view/CSE/job/Test... (1 seconds)
@@ -205,6 +213,12 @@ shell:
 <div class="code YAML highlight-python"><div class="highlight"><pre>step: build and push a versioned test image
 shell:
 - tools push -t $COMMIT_SHORT paugamo/test
+</pre></div>
+</div>
+<p>You want to use <a class="reference external" href="https://quay.io/">Quay</a> as your target registry ? No problemo:</p>
+<div class="code YAML highlight-python"><div class="highlight"><pre>step: build and push a to quay
+shell:
+- tools push quay.io/paugamo/test
 </pre></div>
 </div>
 </div>
