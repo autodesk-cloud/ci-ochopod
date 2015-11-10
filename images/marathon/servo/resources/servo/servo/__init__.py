@@ -14,11 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import hashlib
+import hmac
 import json
-import os
-import requests
 import sys
-import yaml
 
 from contextlib import contextmanager
 from ochopod.core.fsm import diagnostic
@@ -32,25 +31,28 @@ def servo(strict=True, verbose=False):
 
         #
         # - retrieve the portal coordinates from /opt/servo/.portal
-        # - this file is rendered by the pod script upon boot
+        # - this file is rendered by the pod script upon boot as a little JSON blob
+        # - what we want is the proxy ip/port plus its secret token
         #
         _, lines = shell('cat .portal', cwd='/opt/servo')
-        portal = lines[0]
-        assert portal, '/opt/servo/.portal not found (pod not yet configured ?)'
+        hints = json.loads(lines[0].decode('utf-8'))
+        assert hints, '/opt/servo/.portal not found (pod not yet configured ?)'
 
         def _proxy(cmdline):
 
             #
             # - this block is taken from cli.py in ochothon
+            # - don't forget to add the SHA1 signature
             # - in debug mode the verbatim response from the portal is dumped on stdout
             # - slight modification : we force the json output (-j)
             #
             tokens = cmdline.split(' ') + ['-j']
             files = ['-F %s=@%s' % (basename(token), expanduser(token)) for token in tokens if isfile(expanduser(token))]
             line = ' '.join([basename(token) if isfile(expanduser(token)) else token for token in tokens])
-            snippet = 'curl -X POST -H "X-Shell:%s" %s %s/shell' % (line, ' '.join(files), portal)
+            digest = 'sha1=' + hmac.new(str(hints['token']), line, hashlib.sha1).hexdigest() if hints['token'] else ''
+            snippet = 'curl -X POST -H "X-Shell:%s" -H "X-Signature:%s" %s %s/shell' % (line, digest, ' '.join(files), hints['ip'])
             code, lines = shell(snippet)
-            assert code is 0, 'is the portal @ %s down ?' % portal
+            assert code is 0, 'is the portal @ %s down ?' % hints['ip']
             js = json.loads(lines[0])
             ok = js['ok']
             if verbose:

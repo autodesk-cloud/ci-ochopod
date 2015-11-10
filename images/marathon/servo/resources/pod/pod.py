@@ -53,7 +53,7 @@ if __name__ == '__main__':
         to the CLI.
 
         CLI usage:
-        $ exec *.servo --force run my-scripts-folder script.py --variable key:value
+        $ exec *.servo --force run my-scripts-folder script.py --variables key:value
         """
 
         tag = 'run'
@@ -144,12 +144,26 @@ if __name__ == '__main__':
             pod = cluster.pods[cluster.key]
 
             #
+            # - query the ochothon proxy secret token via an internal POST /info
+            #
+            reply = requests.post('http://%s/info' % cluster.grep('portal', 8080))
+            js = json.loads(reply.text)
+
+            #
             # - look the ochothon portal up @ TCP 9000
-            # - update the resulting connection string into /opt/slave/.portal
+            # - update the resulting connection string into a small JSON payload
+            # - add the ochothon proxy token as well
+            # - persist it into /opt/slave/.portal
             # - this will be used by the CI/CD scripts to issue commands
             #
+            hints = \
+                {
+                    'ip': cluster.grep('portal', 9000),
+                    'token': js['metrics']['token'] if 'token' in js['metrics'] else ''
+                }
+
             with open('/opt/servo/.portal', 'w') as f:
-                f.write(cluster.grep('portal', 9000))
+                f.write(json.dumps(hints))
 
             #
             # - pass the token and our local IP:port connection string (used for the callback
