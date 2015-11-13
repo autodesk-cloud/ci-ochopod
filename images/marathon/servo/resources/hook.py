@@ -77,10 +77,6 @@ if __name__ == '__main__':
                 return '', 403
 
             #
-            # - split the last URI token in case multiple scripts are specified
-            #
-
-            #
             # - force a json output if the Accept header matches 'application/json'
             # - otherwise default to a text/plain response
             # - create a temporary directory to run from

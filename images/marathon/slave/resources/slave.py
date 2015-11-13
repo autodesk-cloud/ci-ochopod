@@ -21,6 +21,7 @@ import os
 import redis
 import shutil
 import sys
+import tempfile
 import time
 import yaml
 
@@ -75,7 +76,8 @@ if __name__ == '__main__':
                 safe = tag.replace('/', '-')
                 abridged = []
                 log = ['- commit %s (%s)' % (sha[0:10], last['message'])]
-                tmp = path.join('/tmp', safe)
+                cached = path.join('/tmp', safe)
+                tmp = tempfile.mkdtemp()
                 try:
 
                     try:
@@ -86,22 +88,22 @@ if __name__ == '__main__':
                         #
                         if 'reset' in build and build['reset']:
                             try:
-                                shutil.rmtree(tmp)
-                                logger.info('wiped out %s' % tmp)
+                                shutil.rmtree(cached)
+                                logger.info('wiped out %s' % cached)
                             except IOError:
                                 pass
 
-                        repo = path.join(tmp, cfg['name'])
+                        repo = path.join(cached, cfg['name'])
                         if not path.exists(repo):
 
                             #
                             # - the repo is not in our cache
                             # - git clone it
                             #
-                            os.makedirs(tmp)
+                            os.makedirs(cached)
                             logger.info('cloning %s' % tag)
                             url = 'https://%s' % cfg['git_url'][6:]
-                            code, _ = shell('git clone -b master --single-branch %s' % url, cwd=tmp)
+                            code, _ = shell('git clone -b master --single-branch %s' % url, cwd=cached)
                             assert code == 0, 'unable to clone %s' % url
                         else:
 
@@ -183,13 +185,19 @@ if __name__ == '__main__':
 
                                     #
                                     # - update the environment we'll pass to the shell
-                                    # - execute the snippet via a POpen()
+                                    # - execute the snippet via a popen()
                                     #
                                     local.update(var)
                                     capped = snippet if len(snippet) < 32 else '%s...' % snippet[:64]
                                     capped = capped.replace('\n', ' ')
                                     logger.debug('running <%s>' % capped)
-                                    code, lines = shell(snippet, cwd=cwd, env=local)
+
+                                    script = path.join(tmp, 'script.sh')
+                                    with file(script, mode='w') as f:
+                                        f.write(snippet)
+
+                                    code, lines = shell('/bin/bash %s' % script, cwd=cwd, env=local)
+
                                     lapse = int(time.time() - tick)
                                     status = 'passed' if not code else 'failed'
                                     memento = '[%s] %s (%d seconds, exit code %d)' % (status, capped, lapse, code)
@@ -232,6 +240,11 @@ if __name__ == '__main__':
                         log += ['* unexpected condition -> %s' % diagnostic(failure)]
 
                 finally:
+
+                    #
+                    # - make sure to cleanup our temporary directory
+                    #
+                    shutil.rmtree(tmp)
 
                     #
                     # - make sure to cleanup our temporary directory
