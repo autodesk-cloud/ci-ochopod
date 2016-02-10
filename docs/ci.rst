@@ -8,9 +8,6 @@ The driving goal behind this effort is to let developers quickly build and relea
 defining a build script and pushing their code to Git_. This is heavily influenced by the rather successful
 Travis_ CI model where all the logic defining the *integration* resides directly in the repository.
 
-We wanted in addition to provide a flexible way to define and deploy new build slaves ready to interact with
-third-party systems such as Jenkins_ or Hipchat_. Those slaves are fully containerized and can be easily customized.
-
 Our CI backend is running on top of a Mesos_ cluster using our open-source Ochopod_ mini-PaaS. It is formed by
 deploying a few self-configuring containers: the receiving *hook*, a small *redis* acting like a job queue and one
 or more *slaves*. The *hook* is an edge node reachable from at least the Git_ backend and acts as a sink that receives
@@ -94,10 +91,11 @@ project which is located in the /app subdirectory you could do:
 Additionally your shell snippets will be provided a few useful environment variables:
 
  - $HOST : build slave hostname
+ - $BRANCH: repository branch
  - $COMMIT : git commit hash (full length)
  - $COMMIT_SHORT : git commit hash (short version)
  - $MESSAGE : git commit message
- - $TAG : repository name
+ - $TAG : branch plus short commit hash
  - $TIMESTAMP : git push timestamp
  - $LOG : current build log as a serialized JSON_ array (abridged version)
  - $OK : "true" if the build is still going on smoothly, "false" if it failed earlier
@@ -195,62 +193,13 @@ You can use the Git_ commit hash to version your image (using it as a tag):
     shell:
     - tools push -t $COMMIT_SHORT paugamo/test
 
-
-You want to use Quay_ as your target registry ? No problemo:
-
-.. code:: YAML
-
-    step: build and push a to quay
-    shell:
-    - tools push quay.io/paugamo/test
-
-
-Hipchat
-*******
-
-The *hipchat* tool is a cheap but effective way to let your integration build perform notifications. You just need
-to specify the room number (look in your Hipchat_ UI to find what it is). The notification color can be specified
-using the *-c* switch (pick from the colors supported by the Hipchat_ API such as *green* or *red*). For instance:
-
-.. code:: YAML
-
-    step: build and push a versioned test image
-    shell:
-    - tools hipchat 1509036 "build started for $TAG ($COMMIT_SHORT, $MESSAGE)"
-    - tools push -t $COMMIT_SHORT paugamo/test
-
-Jenkins
-*******
-
-The *jenkins* tool allows you to trigger a specific Jenkins_ job and create it if not already there. The template we
-use is to setup the job so that it pings the CI backend to grab the build status. You can then free to customize the
-job in Jenkins_ directly to trigger downstream build events.
-
-You just need to specify the Jenkins_ job path. If you for instance want to have Jenkins_ be notified of the outcome
-of a build via the *Test* job nested under the *CI-Tests* folder you could do:
-
-.. code:: YAML
-
-    step: build and push a versioned test image
-    shell:
-    - tools hipchat 1509036 "build started for $TAG ($COMMIT_SHORT, $MESSAGE)"
-    - tools push -t $COMMIT_SHORT paugamo/test
-    - no-skip tools jenkins CI-Tests/job/Test
-
-.. note::
-    The *no-skip* token is used in that case to guarantee we notify Jenkins_ even if the build failed. In that case
-    Jenkins_ will by default CURL the CI backend and record there was a failure.
-
 .. _Docker: https://www.docker.com/
 .. _Git: https://github.com/
-.. _Hipchat: https://www.hipchat.com/
-.. _Jenkins: https://jenkins-ci.org/
 .. _JSON: http://www.json.org/
 .. _Mesos: http://mesos.apache.org/
 .. _Ochopod: https://github.com/autodesk-cloud/ochopod
 .. _Ochothon: https://github.com/autodesk-cloud/ochothon
 .. _Python: https://www.python.org/
-.. _Quay: https://quay.io/
 .. _SBT: http://www.scala-sbt.org/
 .. _Travis: https://travis-ci.org/
 .. _YAML: http://yaml.org/

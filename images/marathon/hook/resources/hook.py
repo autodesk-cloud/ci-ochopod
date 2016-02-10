@@ -21,6 +21,7 @@ import logging
 import ochopod
 import os
 import redis
+import requests
 import sys
 
 from flask import Flask, request
@@ -35,6 +36,15 @@ web = Flask(__name__)
 if __name__ == '__main__':
 
     try:
+
+        def _slack(line):
+
+            headers = \
+                {
+                    'Content-Type': 'application/json'
+                }
+
+            requests.post('http://%s' % os.environ['slack'], data=line, headers=headers)
 
         #
         # - parse our ochopod hints
@@ -57,16 +67,16 @@ if __name__ == '__main__':
 
             return '', 200
 
-        @web.route('/status/<path:path>', methods=['GET'])
-        def _status(path):
+        @web.route('/status/<branch>/<path:path>', methods=['GET'])
+        def _status(branch, path):
 
-            branch = 'master'
-            key = '%s:%s' % (branch, path)
+            logger.info('HTTP -> GET /status/%s/%s' % (branch, path))
 
             #
             # - force a json output if the Accept header matches 'application/json'
             # - otherwise default to a text/plain response
             #
+            key = '%s:%s' % (branch, path)
             raw = request.accept_mimetypes.best_match(['application/json']) is None
             payload = client.get('status:%s' % key)
             if payload is None:
@@ -100,6 +110,8 @@ if __name__ == '__main__':
         @web.route('/<capabilities>', methods=['POST'])
         def _git_hook(capabilities):
 
+            logger.info('HTTP -> POST /')
+
             #
             # - if we have no build slaves, fast-fail on a 304
             #
@@ -122,15 +134,11 @@ if __name__ == '__main__':
                 return '', 403
 
             #
-            # - ignore any push that is not done on master
-            # - fail in that case on a 304
+            # - retrieve the branch
             #
             logger.debug('git payload -> %s' % request.data)
             js = json.loads(request.data)
             branch = js['ref'].split('/')[-1]
-            logger.debug(branch)
-            if branch != 'master':
-                return '', 304
 
             if capabilities is None:
 
@@ -160,8 +168,8 @@ if __name__ == '__main__':
             # - if we couldn't find a match abort on a 304
             # - otherwise use the # of slaves in that cluster as our modulo
             #
-            logger.debug(cluster)
             if not cluster:
+                logger.info('unable to find a slave (capabilities -> %s)' % capabilities)
                 return '', 304
 
             #
@@ -176,17 +184,23 @@ if __name__ == '__main__':
             client.set('git:%s' % key, request.data)
             client.set('slave:%s' % key, cluster)
             logger.debug('updated git push data @ %s' % key)
+            _slack(':rocket: git push for *%s* (%s), keyed @ _%s_' % (key, branch, cluster))
 
             build = \
                 {
-                    'key': key
+                    'key':    key,
+                    'branch': branch
                 }
-            client.rpush('queue-%s-%d' % (cluster, qid), json.dumps(build))
-            logger.debug('requested build @ %s -> %s' % (key, cluster))
+
+            to = 'queue-%s-%d' % (cluster, qid)
+            client.rpush(to, json.dumps(build))
+            logger.debug('requested build @ %s -> %s' % (key, to))
             return '', 200
 
-        @web.route('/build/<path:path>', methods=['POST'])
-        def _build(path):
+        @web.route('/build/<branch>/<path:path>', methods=['POST'])
+        def _build(branch, path):
+
+            logger.info('HTTP -> POST /build/%s/%s' % (branch, path))
 
             #
             # - if we have no build slaves, fast-fail on a 304
@@ -194,13 +208,11 @@ if __name__ == '__main__':
             if not slaves:
                 return '', 304
 
-            branch = 'master'
-            key = '%s:%s' % (branch, path)
-
             #
             # - look the specified repository up
             # - fail on a 404 if not found
             #
+            key = '%s:%s' % (branch, path)
             payload = client.get('git:%s' % key)
             if payload is None:
                 return '', 404
@@ -215,6 +227,7 @@ if __name__ == '__main__':
 
             modulo = slaves[cluster]
             qid = hash(path) % modulo
+            _slack(':rocket: HTTP request for *%s* (%s), keyed @ _%s_' % (key, branch, cluster))
 
             #
             # - simply push they key to the appropriate queue
@@ -223,6 +236,7 @@ if __name__ == '__main__':
             build = \
                 {
                     'key': key,
+                    'branch': branch,
                     'reset': reset
                 }
 

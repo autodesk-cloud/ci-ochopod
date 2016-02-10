@@ -1,0 +1,9 @@
+cluster:  haproxy
+image:    autodeskcloud/marathon-ci-haproxy:1.0.0
+debug:    true
+ports:
+    - 9000 *
+
+verbatim:
+  cpus: 1.0
+  mem:  512

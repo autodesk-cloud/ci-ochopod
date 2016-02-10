@@ -8,15 +8,9 @@ settings:
     username:
     password:
 
-  presets:
-
-    jenkins:
-      username:
-      token:
-      front-url:
-
-    hipchat:
-      token:
+  slack:
+    token:
+    channel:
 
 verbatim:
   cpus: 1.0

@@ -1,0 +1,18 @@
+cluster:  slack-relay
+image:    autodeskcloud/marathon-ci-slack-relay:1.0.0
+debug:    true
+ports:
+
+  - 9000
+
+verbatim:
+  cpus: 1.0
+  mem:  512
+
+settings:
+
+  #
+  # - slack channel identifier + API token
+  #
+  channel:  olivier_paugam
+  token:    xoxp-2778138625-15020735222-16322292613-e631c6ff4f

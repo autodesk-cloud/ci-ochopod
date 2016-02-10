@@ -14,45 +14,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import json
 import logging
-import os
-import string
 import time
 
 from ochopod.bindings.generic.marathon import Pod
 from ochopod.core.tools import Shell
 from ochopod.models.piped import Actor as Piped
-from ochopod.models.reactive import Actor as Reactive
 
 logger = logging.getLogger('ochopod')
 
 
 if __name__ == '__main__':
 
-    #
-    # - generate a random 32 characters token (valid for the lifetime of the pod)
-    # - use it to filter a bit who can POST to us
-    # - this token can also be defined when deploying the pod
-    #
-    settings = json.loads(os.environ['pod'])
-    alphabet = string.letters + string.digits + '+/'
-    randomized = ''.join(alphabet[ord(c) % len(alphabet)] for c in os.urandom(32))
-    token = settings['token'] if 'token' in settings else randomized
-
-    class Model(Reactive):
-
-        depends_on = ['redis', 'slack-relay', 'slave-*']
-
     class Strategy(Piped):
 
-        cwd = '/opt/hook'
-        
+        cwd = '/opt/relay'
+
         check_every = 60.0
 
         pid = None
 
         since = 0.0
+
+        pipe_subprocess = True
 
         def sanity_check(self, pid):
 
@@ -69,31 +53,14 @@ if __name__ == '__main__':
 
             return \
                 {
-                    'token': token,
                     'uptime': '%.2f hours (pid %s)' % (lapse, pid)
                 }
-
-        def can_configure(self, cluster):
-
-            assert cluster.grep('redis', 6379), '1 redis required'
 
         def configure(self, cluster):
 
             #
-            # - grab all the slave dependencies
-            # - count how many we have and group by type
+            # - start the hosting web framework on TCP 9000
             #
-            pods = cluster.dependencies['slave-*']
-            unrolled = [js['cluster'] for _, js in pods.items()]
-            keys = set(unrolled)
-            tally = {key: unrolled.count(key) for key in keys}
+            return 'gunicorn -b 0.0.0.0:9000 sink:endpoint', {}
 
-            return 'python hook.py', \
-                   {
-                       'token': token,
-                       'redis': cluster.grep('redis', 6379),
-                       'slack': cluster.grep('slack-relay', 9000),
-                       'slaves': json.dumps(tally)
-                   }
-
-    Pod().boot(Strategy, model=Model, tools=[Shell])
+    Pod().boot(Strategy, tools=[Shell])

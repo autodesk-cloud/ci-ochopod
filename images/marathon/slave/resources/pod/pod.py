@@ -33,9 +33,7 @@ if __name__ == '__main__':
 
     class Model(Reactive):
 
-        damper = 30.0
-
-        depends_on = ['redis']
+        depends_on = ['slack-relay', 'redis']
 
     class Strategy(Piped):
 
@@ -95,7 +93,8 @@ if __name__ == '__main__':
             return 'python slave.py', \
                    {
                        'index': cluster.index,
-                       'redis': cluster.grep('redis', 6379)
+                       'redis': cluster.grep('redis', 6379),
+                       'slack': cluster.grep('slack-relay', 9000)
                    }
 
     Pod().boot(Strategy, model=Model, tools=[Shell])

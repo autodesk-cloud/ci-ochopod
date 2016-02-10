@@ -1,0 +1,14 @@
+cluster:  redis
+image:    autodeskcloud/marathon-ci-redis:1.0.0
+debug:    true
+ports:
+    - 6379
+
+verbatim:
+  cpus: 1.0
+  mem:  1024
+
+  constraints:
+  -
+    - hostname
+    - UNIQUE

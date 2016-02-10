@@ -18,7 +18,9 @@ import json
 import logging
 import ochopod
 import os
+import re
 import redis
+import requests
 import shutil
 import sys
 import tempfile
@@ -52,14 +54,24 @@ if __name__ == '__main__':
         client = redis.StrictRedis(host=tokens[0], port=int(tokens[1]), db=0)
         while 1:
 
+            def _slack(line):
+
+                headers = \
+                    {
+                        'Content-Type': 'application/json'
+                    }
+
+                requests.post('http://%s' % os.environ['slack'], data=line, headers=headers)
+
             #
             # - the key passed int the queue is made of the branch & repository tag
             #
             queue = 'queue-%s-%d' % (hints['cluster'], int(os.environ['index']))
             logger.debug('waiting on %s...' % queue)
-            _, js = client.blpop(queue)
-            build = json.loads(js)
             try:
+                _, js = client.blpop(queue)
+                build = json.loads(js)
+                branch = build['branch']
                 started = time.time()
                 payload = client.get('git:%s' % build['key'])
                 js = json.loads(payload)
@@ -79,6 +91,8 @@ if __name__ == '__main__':
                 cached = path.join('/tmp', safe)
                 tmp = tempfile.mkdtemp()
                 try:
+
+                    _slack(':rocket: %s #%d: build starting for *%s* (%s, hash _%s_ "%s")...' % (hints['cluster'], int(os.environ['index']), tag, branch, sha[0:10], last['message']))
 
                     try:
 
@@ -101,9 +115,9 @@ if __name__ == '__main__':
                             # - git clone it
                             #
                             os.makedirs(cached)
-                            logger.info('cloning %s' % tag)
+                            logger.info('cloning %s [%s]' % (tag, branch))
                             url = 'https://%s' % cfg['git_url'][6:]
-                            code, _ = shell('git clone -b master --single-branch %s' % url, cwd=cached)
+                            code, _ = shell('git clone -b %s --single-branch %s' % (branch, url), cwd=cached)
                             assert code == 0, 'unable to clone %s' % url
                         else:
 
@@ -126,14 +140,13 @@ if __name__ == '__main__':
                         #
                         var = \
                             {
-                                'QUERY_URL': 'http://10.50.85.97:5000/status/%s' % tag,
-                                'PRESETS': json.dumps(settings['presets']),
-                                'HOST': os.environ['HOST'],
-                                'COMMIT': sha,
-                                'COMMIT_SHORT': sha[0:10],
-                                'MESSAGE': last['message'],
-                                'TAG': tag,
-                                'TIMESTAMP': last['timestamp']
+                                'HOST':             os.environ['HOST'],
+                                'BRANCH':           branch,
+                                'COMMIT':           sha,
+                                'COMMIT_SHORT':     sha[0:10],
+                                'MESSAGE':          last['message'],
+                                'TAG':              re.sub(r'[^a-zA-Z0-9=]', '-','%s-%s' % (branch, sha[0:10])),
+                                'TIMESTAMP':        last['timestamp']
                             }
 
                         #
@@ -264,8 +277,13 @@ if __name__ == '__main__':
                     client.set('status:%s' % build['key'], json.dumps(status))
                     logger.info('%s @ %s -> %s %d seconds' % (tag, sha[0:10], 'ok' if status['ok'] else 'ko', seconds))
 
+                icon = ':white_check_mark:' if ok and complete else ':no_entry:'
+                _slack(':rocket: %s *%s* (%s, hash _%s_) ran in *%ds* with log:' % (icon, tag, branch, sha[0:10], seconds))
+                _slack('```%s```' % '\n'.join(log))
+
             except Exception as failure:
 
+                _slack(':no_entry: _%s_' % diagnostic(failure))
                 logger.error('unexpected condition -> %s' % diagnostic(failure))
 
     except Exception as failure:
