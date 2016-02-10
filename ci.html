@@ -31,11 +31,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
 
   </head>
-  <body role="document">
+  <body>
   
   
 
-    <div class="related" role="navigation" aria-label="related navigation">
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -54,7 +54,7 @@
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body" role="main">
+          <div class="body">
             
   <div class="section" id="ci">
 <h1>CI<a class="headerlink" href="#ci" title="Permalink to this headline">¶</a></h1>
@@ -63,8 +63,6 @@
 <p>The driving goal behind this effort is to let developers quickly build and release new <a class="reference external" href="https://www.docker.com/">Docker</a> images but just
 defining a build script and pushing their code to <a class="reference external" href="https://github.com/">Git</a>. This is heavily influenced by the rather successful
 <a class="reference external" href="https://travis-ci.org/">Travis</a> CI model where all the logic defining the <em>integration</em> resides directly in the repository.</p>
-<p>We wanted in addition to provide a flexible way to define and deploy new build slaves ready to interact with
-third-party systems such as <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> or <a class="reference external" href="https://www.hipchat.com/">Hipchat</a>. Those slaves are fully containerized and can be easily customized.</p>
 <p>Our CI backend is running on top of a <a class="reference external" href="http://mesos.apache.org/">Mesos</a> cluster using our open-source <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> mini-PaaS. It is formed by
 deploying a few self-configuring containers: the receiving <em>hook</em>, a small <em>redis</em> acting like a job queue and one
 or more <em>slaves</em>. The <em>hook</em> is an edge node reachable from at least the <a class="reference external" href="https://github.com/">Git</a> backend and acts as a sink that receives
@@ -137,10 +135,11 @@ shell:
 <blockquote>
 <div><ul class="simple">
 <li>$HOST : build slave hostname</li>
+<li>$BRANCH: repository branch</li>
 <li>$COMMIT : git commit hash (full length)</li>
 <li>$COMMIT_SHORT : git commit hash (short version)</li>
 <li>$MESSAGE : git commit message</li>
-<li>$TAG : repository name</li>
+<li>$TAG : branch plus short commit hash</li>
 <li>$TIMESTAMP : git push timestamp</li>
 <li>$LOG : current build log as a serialized <a class="reference external" href="http://www.json.org/">JSON</a> array (abridged version)</li>
 <li>$OK : &#8220;true&#8221; if the build is still going on smoothly, &#8220;false&#8221; if it failed earlier</li>
@@ -215,44 +214,6 @@ shell:
 - tools push -t $COMMIT_SHORT paugamo/test
 </pre></div>
 </div>
-<p>You want to use <a class="reference external" href="https://quay.io/">Quay</a> as your target registry ? No problemo:</p>
-<div class="code YAML highlight-python"><div class="highlight"><pre>step: build and push a to quay
-shell:
-- tools push quay.io/paugamo/test
-</pre></div>
-</div>
-</div>
-<div class="section" id="hipchat">
-<h3>Hipchat<a class="headerlink" href="#hipchat" title="Permalink to this headline">¶</a></h3>
-<p>The <em>hipchat</em> tool is a cheap but effective way to let your integration build perform notifications. You just need
-to specify the room number (look in your <a class="reference external" href="https://www.hipchat.com/">Hipchat</a> UI to find what it is). The notification color can be specified
-using the <em>-c</em> switch (pick from the colors supported by the <a class="reference external" href="https://www.hipchat.com/">Hipchat</a> API such as <em>green</em> or <em>red</em>). For instance:</p>
-<div class="code YAML highlight-python"><div class="highlight"><pre>step: build and push a versioned test image
-shell:
-- tools hipchat 1509036 &quot;build started for $TAG ($COMMIT_SHORT, $MESSAGE)&quot;
-- tools push -t $COMMIT_SHORT paugamo/test
-</pre></div>
-</div>
-</div>
-<div class="section" id="jenkins">
-<h3>Jenkins<a class="headerlink" href="#jenkins" title="Permalink to this headline">¶</a></h3>
-<p>The <em>jenkins</em> tool allows you to trigger a specific <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> job and create it if not already there. The template we
-use is to setup the job so that it pings the CI backend to grab the build status. You can then free to customize the
-job in <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> directly to trigger downstream build events.</p>
-<p>You just need to specify the <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> job path. If you for instance want to have <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> be notified of the outcome
-of a build via the <em>Test</em> job nested under the <em>CI-Tests</em> folder you could do:</p>
-<div class="code YAML highlight-python"><div class="highlight"><pre>step: build and push a versioned test image
-shell:
-- tools hipchat 1509036 &quot;build started for $TAG ($COMMIT_SHORT, $MESSAGE)&quot;
-- tools push -t $COMMIT_SHORT paugamo/test
-- no-skip tools jenkins CI-Tests/job/Test
-</pre></div>
-</div>
-<div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">The <em>no-skip</em> token is used in that case to guarantee we notify <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> even if the build failed. In that case
-<a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> will by default CURL the CI backend and record there was a failure.</p>
-</div>
 </div>
 </div>
 </div>
@@ -261,7 +222,7 @@ shell:
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
             <p class="logo"><a href="index.html">
               <img class="logo" src="_static/autodesk-logo.png" alt="Logo"/>
@@ -284,8 +245,6 @@ shell:
 </li>
 <li><a class="reference internal" href="#tools">Tools</a><ul>
 <li><a class="reference internal" href="#docker">Docker</a></li>
-<li><a class="reference internal" href="#hipchat">Hipchat</a></li>
-<li><a class="reference internal" href="#jenkins">Jenkins</a></li>
 </ul>
 </li>
 </ul>
@@ -298,7 +257,7 @@ shell:
       <li>Next: <a href="cd.html" title="next chapter">CD</a></li>
   </ul></li>
 </ul>
-<div id="searchbox" style="display: none" role="search">
+<div id="searchbox" style="display: none">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
       <input type="text" name="q" />

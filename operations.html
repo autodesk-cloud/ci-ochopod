@@ -30,11 +30,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
 
   </head>
-  <body role="document">
+  <body>
   
   
 
-    <div class="related" role="navigation" aria-label="related navigation">
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -50,7 +50,7 @@
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body" role="main">
+          <div class="body">
             
   <div class="section" id="operations">
 <h1>Operations<a class="headerlink" href="#operations" title="Permalink to this headline">¶</a></h1>
@@ -59,17 +59,21 @@
 <p>You first need a functional <a class="reference external" href="http://mesos.apache.org/">Mesos</a> cluster equipped with <a class="reference external" href="https://github.com/autodesk-cloud/ochothon">Ochothon</a> (please refer to their respective documentations
 for details).</p>
 <p>The <em>YAML definition</em> to use for each component can be found in the repository (grep for <em>marathon.yml</em>). Please note
-some of them specify settings that are not defaulted (especially for the slave image which requires a few credentials).
-You can copy them all in one place and edit them according to your needs.</p>
+some of them specify settings that are not defaulted (especially for the slaves which require a few credentials and
+the <a class="reference external" href="https://slack.com/">Slack</a> relay). You can copy them all in one place and edit them according to your needs.</p>
 <p>Go ahead and add all those pods in an arbitrary &#8220;ci&#8221; namespace (for instance). We first need a <a class="reference external" href="http://redis.io/">Redis</a> pod in
-that namespace to act as a buffer &amp; queue. Let&#8217;s assume we have one already running. We then need at least one <em>hook</em>
-pod (to receive HTTP POST requests from Git) and a at least one <em>slave</em> pod. Let&#8217;s pick 3 slaves for the sake of
-illustration.</p>
+that namespace to act as a buffer &amp; queue. We then need at least one <em>hook</em> pod (to receive HTTP POST requests from Git)
+and a at least one <em>slave</em> pod. Finally we need to add a top-level <a class="reference external" href="http://www.haproxy.org/">HAProxy</a> to direct traffic to the hooks and a <a class="reference external" href="https://slack.com/">Slack</a>
+relay to forward notifications.</p>
 <p>Open the CLI and deploy. For instance:</p>
-<div class="code bash highlight-python"><div class="highlight"><pre>$ ocho cli my-cluster
+<div class="code bash highlight-python"><div class="highlight"><pre>$ cd images/marathon
+$ ocho cli my-cluster
 welcome to the ocho CLI ! (CTRL-C or exit to get out)
-my-cluster &gt; deploy -n ci images/marathon/hook/marathon.yml -t 120
-my-cluster &gt; deploy -n ci images/marathon/slave/marathon.yml -t 120 -p 3
+my-cluster &gt; deploy -n ci hook/marathon.yml
+my-cluster &gt; deploy -n ci redis/marathon.yml
+my-cluster &gt; deploy -n ci haproxy/marathon.yml
+my-cluster &gt; deploy -n ci slack-relay/marathon.yml
+my-cluster &gt; deploy -n ci slave/marathon.yml
 </pre></div>
 </div>
 <p>Once this is done you should have 5 pods running on your cluster:</p>
@@ -82,25 +86,22 @@ cluster                     |  ok   |  status
                             |       |
 ci.hook                     |  1/1  |
 ci.redis                    |  1/1  |
-ci.slave                    |  3/3  |
+ci.haproxy                  |  1/1  |
+ci.slack-relay              |  1/1  |
+ci.slave                    |  1/1  |
 </pre></div>
 </div>
-<p>Note the <em>hook</em> URL (and make sure it is reachable from your Git deployment). The container will bind to its host&#8217;s
-TCP 5000. For instance:</p>
+<p>Note the <em>haproxy</em> URL (and make sure it is reachable from your Git deployment). The container will bind to its host&#8217;s
+TCP 9000. For instance:</p>
 <div class="code bash highlight-python"><div class="highlight"><pre>$ ocho cli my-cluster
 welcome to the ocho CLI ! (CTRL-C or exit to get out)
-my-cluster &gt; port 5000
+my-cluster &gt; port 9000
 1 pods, 100% replies -&gt;
 
-pod                  |  pod IP        |  public IP  |  TCP
-                     |                |             |
-ci-backend.hook #0   |  10.50.85.97   |             |  5000
+pod                   |  pod IP        |  public IP  |  TCP
+                      |                |             |
+ci-backend.haproxy #0 |  10.50.85.97   |             |  9000
 </pre></div>
-</div>
-<div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">You can add a front-ending <a class="reference external" href="http://www.haproxy.org/">HAProxy</a> if needed, for instance to run multiple <em>hook</em> pods if you need to scale. I
-suggest exposing the CI backend via HTTPS only.</p>
 </div>
 <p>Pay also attention to the <em>hook</em> auto-generated secret token. This random identifier must be used when setting up your
 web-hook. For instance:</p>
@@ -136,7 +137,7 @@ slaves. After doing so it is highly probable repositories will have to be cached
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
             <p class="logo"><a href="index.html">
               <img class="logo" src="_static/autodesk-logo.png" alt="Logo"/>
@@ -155,7 +156,7 @@ slaves. After doing so it is highly probable repositories will have to be cached
       <li>Previous: <a href="cd.html" title="previous chapter">CD</a></li>
   </ul></li>
 </ul>
-<div id="searchbox" style="display: none" role="search">
+<div id="searchbox" style="display: none">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
       <input type="text" name="q" />
