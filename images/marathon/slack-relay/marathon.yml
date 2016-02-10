@@ -14,5 +14,5 @@ settings:
   #
   # - slack channel identifier + API token
   #
-  channel:  olivier_paugam
-  token:    xoxp-2778138625-15020735222-16322292613-e631c6ff4f
+  channel:
+  token:   
