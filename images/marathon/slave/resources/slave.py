@@ -78,6 +78,8 @@ if __name__ == '__main__':
 
                 #
                 # - extract the various core parameters from the git push json
+                # - prep a directory under /tmp/<repo>-<branch>
+                # - we'll stick to it and clone/checkout the code in there
                 #
                 ok = 1
                 complete = 0
@@ -88,7 +90,7 @@ if __name__ == '__main__':
                 safe = tag.replace('/', '-')
                 abridged = []
                 log = ['- commit %s (%s)' % (sha[0:10], last['message'])]
-                cached = path.join('/tmp', safe)
+                cached = path.join('/tmp', '%s-%s' % (safe, branch))
                 tmp = tempfile.mkdtemp()
                 try:
 
@@ -283,7 +285,7 @@ if __name__ == '__main__':
 
             except Exception as failure:
 
-                _slack(':no_entry: _%s_' % diagnostic(failure))
+                _slack(':no_entry: internal failure: "_%s_"' % diagnostic(failure))
                 logger.error('unexpected condition -> %s' % diagnostic(failure))
 
     except Exception as failure:
